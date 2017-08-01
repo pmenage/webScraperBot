@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	url := "http://www.aljazeera.com"
+	url := "http://www.aljazeera.com/indepth/features/2017/07/west-bank-villagers-decry-collective-punishment-170730080314302.html"
 	fmt.Printf("HTML code of %s ...\n", url)
 	resp, err := http.Get(url)
 	if err != nil {

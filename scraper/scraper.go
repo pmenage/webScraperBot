@@ -1,7 +1,9 @@
 package scraper
 
 import (
+	"bytes"
 	"fmt"
+	"regexp"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -49,5 +51,43 @@ func ArticlesScraper() ([]string, []string) {
 	})
 
 	return msgs, images
+
+}
+
+// ArticleScraper gets the content of an article
+func ArticleScraper(article string) string {
+
+	r, _ := regexp.Compile("http://.+.html")
+	a := r.FindString(article)
+	// if no string, return error
+
+	doc, err := goquery.NewDocument(a)
+	if err != nil {
+		panic(err)
+	}
+
+	var buffer bytes.Buffer
+
+	doc.Find("h1").Each(func(i int, s *goquery.Selection) {
+		title := s.Text()
+		buffer.WriteString("<b>" + title + "</b>\n\n")
+	})
+
+	doc.Find("h2").Each(func(i int, s *goquery.Selection) {
+		title := s.Text()
+		buffer.WriteString("<i>" + title + "</i>\n\n")
+	})
+
+	doc.Find(".article-body").Each(func(i int, s *goquery.Selection) {
+		s.Find("p").Each(func(i int, s *goquery.Selection) {
+			text := s.Text()
+			buffer.WriteString(text + "\n\n")
+		})
+	})
+
+	if buffer.String() == "" {
+		buffer.WriteString("We didn't find an article, we are going to try again.")
+	}
+	return buffer.String()
 
 }

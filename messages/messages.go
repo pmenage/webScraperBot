@@ -2,6 +2,7 @@ package messages
 
 import (
 	"net/http"
+	"strconv"
 
 	"io"
 	"os"
@@ -12,6 +13,13 @@ import (
 // Bot is the Telegram Bot API
 type Bot struct {
 	Client *tgbotapi.BotAPI
+}
+
+// LastMessage contains the last articles
+type LastMessage struct {
+	ChatID   int64
+	Message  string
+	Articles []string
 }
 
 // NewBot creates a new bot
@@ -25,10 +33,29 @@ func NewBot(telegramKey string) Bot {
 	}
 }
 
+// SetMessage sets a new message
+func (l *LastMessage) SetMessage(message string) {
+	l.Message = message
+}
+
+// SetArticles sets the last articles
+func (l *LastMessage) SetArticles(articles []string) {
+	l.Articles = articles
+}
+
 // SendMessage sends a message to user
 func (b Bot) SendMessage(update tgbotapi.Update, message string) {
 	bot := b.Client
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, message)
+	msg := tgbotapi.MessageConfig{
+		BaseChat: tgbotapi.BaseChat{
+			ChatID:           update.Message.Chat.ID,
+			ReplyToMessageID: 0,
+		},
+		Text:                  message,
+		ParseMode:             "HTML",
+		DisableWebPagePreview: true,
+	}
+
 	_, err := bot.Send(msg)
 	if err != nil {
 		panic(err)
@@ -65,19 +92,37 @@ func (b Bot) SendNews(update tgbotapi.Update, messages, images []string) {
 			}
 		}
 
-		msg := tgbotapi.MessageConfig{
-			BaseChat: tgbotapi.BaseChat{
-				ChatID:           update.Message.Chat.ID,
-				ReplyToMessageID: 0,
-			},
-			Text:                  messages[i],
-			ParseMode:             "HTML",
-			DisableWebPagePreview: true,
-		}
+		b.SendMessage(update, messages[i])
+	}
 
-		_, err := bot.Send(msg)
-		if err != nil {
-			panic(err)
-		}
+	b.SendMessage(update, "Do you want to read an article?")
+
+}
+
+// SendKeyboard sends a keyboard to chose an article
+func (b Bot) SendKeyboard(update tgbotapi.Update, numberArticles int) {
+	bot := b.Client
+	msg := tgbotapi.NewMessage(
+		update.Message.Chat.ID,
+		"Please choose which article you wish to read.")
+
+	var keyboard [][]tgbotapi.KeyboardButton
+
+	for i := 1; i < numberArticles+1; i++ {
+		keyboard = append(
+			keyboard,
+			[]tgbotapi.KeyboardButton{
+				tgbotapi.NewKeyboardButton(strconv.Itoa(i)),
+			})
+	}
+
+	markup := tgbotapi.ReplyKeyboardMarkup{
+		Keyboard:        keyboard,
+		OneTimeKeyboard: true,
+	}
+	msg.ReplyMarkup = markup
+	_, err := bot.Send(msg)
+	if err != nil {
+		panic(err)
 	}
 }

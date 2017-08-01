@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"webScraperBot/config"
 	"webScraperBot/messages"
 	"webScraperBot/scraper"
@@ -23,12 +24,13 @@ func main() {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	type lastMessage struct {
-		ChatID  int64
-		Message string
+	type LastMessage struct {
+		ChatID   int64
+		Message  string
+		Articles []string
 	}
 
-	//var lastMessages []lastMessage
+	var lastMessages []messages.LastMessage
 
 	updates, _ := bot.Client.GetUpdatesChan(u)
 
@@ -46,8 +48,41 @@ func main() {
 
 		} else if update.Message.Text == "/news" {
 
-			messages, images := scraper.ArticlesScraper()
-			bot.SendNews(update, messages, images)
+			articles, images := scraper.ArticlesScraper()
+			lastMessages = append(
+				lastMessages,
+				messages.LastMessage{
+					ChatID:   update.Message.Chat.ID,
+					Articles: articles,
+				})
+			bot.SendNews(update, articles, images)
+
+		} else if update.Message.Text == "Yes" {
+
+			for _, lastMessage := range lastMessages {
+				if update.Message.Chat.ID == lastMessage.ChatID {
+					bot.SendKeyboard(update, len(lastMessage.Articles))
+				}
+			}
+
+		} else if update.Message.Text == "1" || update.Message.Text == "2" || update.Message.Text == "3" || update.Message.Text == "4" || update.Message.Text == "5" {
+
+			articleNumber, err := strconv.Atoi(update.Message.Text)
+			if err != nil {
+				panic(err)
+			}
+			for _, lastMessage := range lastMessages {
+				if update.Message.Chat.ID == lastMessage.ChatID {
+					for i := 0; i < 5; i++ {
+						log.Printf("Article %v is: %v", i, lastMessage.Articles[i])
+					}
+					log.Printf("Article number is: %v\n", articleNumber)
+					article := scraper.ArticleScraper(lastMessage.Articles[articleNumber-1])
+					bot.SendMessage(update, article)
+				}
+			}
+			// could create lastMessage var at the beginning, before checking the update.Message.Text
+			// but problem if it is first time, not initialized
 
 		} else if update.Message.Text == "/help" {
 
